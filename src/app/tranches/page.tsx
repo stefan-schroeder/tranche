@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ContributionResult } from "@/lib/domain/funds";
-import type { Fund, Priority } from "@/lib/domain/types";
+import type { ContributionResult } from "@/lib/domain/tranches";
+import type { Tranche, Priority } from "@/lib/domain/types";
+import Nav from "@/components/ui/nav";
 
-type FundWithContribution = Fund & ContributionResult;
+type TrancheWithContribution = Tranche & ContributionResult;
 
 const STATUS_STYLES: Record<ContributionResult["status"], string> = {
   complete: "bg-indigo-500/20 text-indigo-300",
@@ -24,54 +25,56 @@ const STATUS_LABEL: Record<ContributionResult["status"], string> = {
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
-export default function FundsPage() {
-  const [funds, setFunds] = useState<FundWithContribution[]>([]);
+export default function TranchesPage() {
+  const [tranches, setTranches] = useState<TrancheWithContribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadFunds() {
+  async function loadTranches() {
     setLoading(true);
     try {
-      const res = await fetch("/api/funds");
+      const res = await fetch("/api/tranches");
       if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      setFunds(await res.json());
+      setTranches(await res.json());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load funds");
+      setError(e instanceof Error ? e.message : "Failed to load tranches");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadFunds();
+    loadTranches();
   }, []);
 
   async function handleDelete(id: number) {
-    await fetch(`/api/funds/${id}`, { method: "DELETE" });
-    await loadFunds();
+    await fetch(`/api/tranches/${id}`, { method: "DELETE" });
+    await loadTranches();
   }
 
   return (
-    <div className="min-h-screen flex-1 bg-gray-950 px-8 py-12 text-gray-50">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-2xl font-semibold tracking-tight">Sub-Funds</h1>
+    <div className="flex min-h-screen flex-1 flex-col bg-gray-950 text-gray-50">
+      <Nav variant="dark" />
+
+      <div className="mx-auto w-full max-w-3xl flex-1 px-8 py-12">
+        <h1 className="text-2xl font-semibold tracking-tight">Tranches</h1>
         <p className="mt-1 text-sm text-gray-400">
-          Goal-based funds carved out of your brokerage account.
+          Goal-based tranches carved out of your brokerage account.
         </p>
 
-        <FundForm onCreated={loadFunds} />
+        <TrancheForm onCreated={loadTranches} />
 
         {loading && <p className="mt-8 text-gray-500">Loading…</p>}
         {error && <p className="mt-8 text-red-400">{error}</p>}
 
-        {!loading && !error && funds.length === 0 && (
-          <p className="mt-8 text-gray-500">No funds yet — create one above.</p>
+        {!loading && !error && tranches.length === 0 && (
+          <p className="mt-8 text-gray-500">No tranches yet — create one above.</p>
         )}
 
         <div className="mt-8 flex flex-col gap-4">
-          {funds.map((fund) => (
-            <FundCard key={fund.id} fund={fund} onDelete={() => handleDelete(fund.id)} />
+          {tranches.map((tranche) => (
+            <TrancheCard key={tranche.id} tranche={tranche} onDelete={() => handleDelete(tranche.id)} />
           ))}
         </div>
       </div>
@@ -79,18 +82,18 @@ export default function FundsPage() {
   );
 }
 
-function FundCard({ fund, onDelete }: { fund: FundWithContribution; onDelete: () => void }) {
-  const progressPct = Math.round(fund.progress * 100);
+function TrancheCard({ tranche, onDelete }: { tranche: TrancheWithContribution; onDelete: () => void }) {
+  const progressPct = Math.round(tranche.progress * 100);
   return (
     <div className="rounded-xl bg-gray-900 p-5">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: fund.color }} />
-          <h2 className="font-medium">{fund.name}</h2>
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tranche.color }} />
+          <h2 className="font-medium">{tranche.name}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[fund.status]}`}>
-            {STATUS_LABEL[fund.status]}
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[tranche.status]}`}>
+            {STATUS_LABEL[tranche.status]}
           </span>
           <button
             onClick={onDelete}
@@ -110,21 +113,21 @@ function FundCard({ fund, onDelete }: { fund: FundWithContribution; onDelete: ()
 
       <div className="mt-2 flex items-center justify-between text-sm text-gray-400">
         <span>
-          {currency.format(fund.currentValue)} of {currency.format(fund.goalAmount)} goal
+          {currency.format(tranche.currentValue)} of {currency.format(tranche.goalAmount)} goal
         </span>
-        <span>{fund.targetDate}</span>
+        <span>{tranche.targetDate}</span>
       </div>
 
-      {fund.status !== "complete" && (
+      {tranche.status !== "complete" && (
         <p className="mt-2 text-sm text-gray-300">
-          Need {currency.format(fund.requiredPerPaycheck)}/paycheck to hit goal by {fund.targetDate}
+          Need {currency.format(tranche.requiredPerPaycheck)}/paycheck to hit goal by {tranche.targetDate}
         </p>
       )}
     </div>
   );
 }
 
-function FundForm({ onCreated }: { onCreated: () => void }) {
+function TrancheForm({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [goalAmount, setGoalAmount] = useState("");
   const [targetDate, setTargetDate] = useState("");
@@ -135,7 +138,7 @@ function FundForm({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await fetch("/api/funds", {
+      await fetch("/api/tranches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,7 +204,7 @@ function FundForm({ onCreated }: { onCreated: () => void }) {
         disabled={submitting}
         className="ml-auto rounded-md bg-indigo-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
       >
-        {submitting ? "Creating…" : "Create fund"}
+        {submitting ? "Creating…" : "Create tranche"}
       </button>
     </form>
   );

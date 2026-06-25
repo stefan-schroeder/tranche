@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
-import type { Fund, Priority } from "./domain/types";
+import type { Tranche, Priority } from "./domain/types";
 
 const DB_PATH = path.join(process.cwd(), "tranche.db");
 
@@ -9,6 +9,7 @@ let db: DatabaseSync | null = null;
 export function getDb(): DatabaseSync {
   if (db) return db;
   db = new DatabaseSync(DB_PATH);
+  migrateLegacyFundTables(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS plaid_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +36,7 @@ export function getDb(): DatabaseSync {
       snapshot_date DATE UNIQUE NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS funds (
+    CREATE TABLE IF NOT EXISTS tranches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       goal_amount REAL NOT NULL,
@@ -45,18 +46,34 @@ export function getDb(): DatabaseSync {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS fund_positions (
+    CREATE TABLE IF NOT EXISTS tranche_positions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      fund_id INTEGER REFERENCES funds(id) ON DELETE CASCADE,
+      tranche_id INTEGER REFERENCES tranches(id) ON DELETE CASCADE,
       ticker TEXT NOT NULL,
       shares REAL NOT NULL,
-      UNIQUE(fund_id, ticker)
+      UNIQUE(tranche_id, ticker)
     );
   `);
   return db;
 }
 
-interface FundRow {
+// One-time migration: this table used to be called "funds" / "fund_positions"
+// before the "tranche" terminology was adopted. Rename in place so existing
+// local data survives instead of silently disappearing behind new empty tables.
+function migrateLegacyFundTables(database: DatabaseSync): void {
+  const hasLegacyFunds = database
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'funds'")
+    .get();
+  if (!hasLegacyFunds) return;
+
+  database.exec(`
+    ALTER TABLE funds RENAME TO tranches;
+    ALTER TABLE fund_positions RENAME TO tranche_positions;
+    ALTER TABLE tranche_positions RENAME COLUMN fund_id TO tranche_id;
+  `);
+}
+
+interface TrancheRow {
   id: number;
   name: string;
   goal_amount: number;
@@ -65,7 +82,7 @@ interface FundRow {
   color: string;
 }
 
-function rowToFund(row: FundRow): Fund {
+function rowToTranche(row: TrancheRow): Tranche {
   return {
     id: row.id,
     name: row.name,
@@ -76,17 +93,17 @@ function rowToFund(row: FundRow): Fund {
   };
 }
 
-export function listFunds(): Fund[] {
-  const rows = getDb().prepare("SELECT * FROM funds ORDER BY created_at ASC").all() as unknown as FundRow[];
-  return rows.map(rowToFund);
+export function listTranches(): Tranche[] {
+  const rows = getDb().prepare("SELECT * FROM tranches ORDER BY created_at ASC").all() as unknown as TrancheRow[];
+  return rows.map(rowToTranche);
 }
 
-export function getFund(id: number): Fund | null {
-  const row = getDb().prepare("SELECT * FROM funds WHERE id = ?").get(id) as unknown as FundRow | undefined;
-  return row ? rowToFund(row) : null;
+export function getTranche(id: number): Tranche | null {
+  const row = getDb().prepare("SELECT * FROM tranches WHERE id = ?").get(id) as unknown as TrancheRow | undefined;
+  return row ? rowToTranche(row) : null;
 }
 
-export interface NewFund {
+export interface NewTranche {
   name: string;
   goalAmount: number;
   targetDate: string;
@@ -94,51 +111,51 @@ export interface NewFund {
   color: string;
 }
 
-export function createFund(input: NewFund): Fund {
+export function createTranche(input: NewTranche): Tranche {
   const result = getDb()
     .prepare(
-      "INSERT INTO funds (name, goal_amount, target_date, priority, color) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO tranches (name, goal_amount, target_date, priority, color) VALUES (?, ?, ?, ?, ?)",
     )
     .run(input.name, input.goalAmount, input.targetDate, input.priority, input.color);
-  return getFund(Number(result.lastInsertRowid))!;
+  return getTranche(Number(result.lastInsertRowid))!;
 }
 
-export function updateFund(id: number, input: Partial<NewFund>): Fund | null {
-  const existing = getFund(id);
+export function updateTranche(id: number, input: Partial<NewTranche>): Tranche | null {
+  const existing = getTranche(id);
   if (!existing) return null;
   const merged = { ...existing, ...input, goalAmount: input.goalAmount ?? existing.goalAmount, targetDate: input.targetDate ?? existing.targetDate };
   getDb()
     .prepare(
-      "UPDATE funds SET name = ?, goal_amount = ?, target_date = ?, priority = ?, color = ? WHERE id = ?",
+      "UPDATE tranches SET name = ?, goal_amount = ?, target_date = ?, priority = ?, color = ? WHERE id = ?",
     )
     .run(merged.name, merged.goalAmount, merged.targetDate, merged.priority, merged.color, id);
-  return getFund(id);
+  return getTranche(id);
 }
 
-export function deleteFund(id: number): boolean {
-  const result = getDb().prepare("DELETE FROM funds WHERE id = ?").run(id);
+export function deleteTranche(id: number): boolean {
+  const result = getDb().prepare("DELETE FROM tranches WHERE id = ?").run(id);
   return result.changes > 0;
 }
 
-export interface FundPositionRow {
+export interface TranchePositionRow {
   ticker: string;
   shares: number;
 }
 
-export function getFundPositions(fundId: number): FundPositionRow[] {
+export function getTranchePositions(trancheId: number): TranchePositionRow[] {
   return getDb()
-    .prepare("SELECT ticker, shares FROM fund_positions WHERE fund_id = ?")
-    .all(fundId) as unknown as FundPositionRow[];
+    .prepare("SELECT ticker, shares FROM tranche_positions WHERE tranche_id = ?")
+    .all(trancheId) as unknown as TranchePositionRow[];
 }
 
-export function tagPosition(fundId: number, ticker: string, shares: number): void {
+export function tagPosition(trancheId: number, ticker: string, shares: number): void {
   getDb()
     .prepare(
-      "INSERT INTO fund_positions (fund_id, ticker, shares) VALUES (?, ?, ?) ON CONFLICT(fund_id, ticker) DO UPDATE SET shares = excluded.shares",
+      "INSERT INTO tranche_positions (tranche_id, ticker, shares) VALUES (?, ?, ?) ON CONFLICT(tranche_id, ticker) DO UPDATE SET shares = excluded.shares",
     )
-    .run(fundId, ticker, shares);
+    .run(trancheId, ticker, shares);
 }
 
-export function untagPosition(fundId: number, ticker: string): void {
-  getDb().prepare("DELETE FROM fund_positions WHERE fund_id = ? AND ticker = ?").run(fundId, ticker);
+export function untagPosition(trancheId: number, ticker: string): void {
+  getDb().prepare("DELETE FROM tranche_positions WHERE tranche_id = ? AND ticker = ?").run(trancheId, ticker);
 }

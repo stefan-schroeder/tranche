@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Tranche",
-  description: "Personal net worth dashboard and sub-fund engine",
+  description: "Personal net worth dashboard and tranche engine",
 };
 
 export default function RootLayout({

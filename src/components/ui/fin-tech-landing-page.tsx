@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
 import { signIn } from "next-auth/react";
+import Nav from "./nav";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -96,61 +97,21 @@ function Planet() {
 }
 
 function handleSignIn() {
-  signIn("google", { callbackUrl: "/funds" });
+  signIn("google", { callbackUrl: "/tranches" });
 }
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen w-full bg-[#F3F5F7]">
+    <div className="flex min-h-screen w-full flex-col bg-[#F3F5F7]">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
         :root { --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif; }
         .font-jakarta { font-family: var(--font-sans); }
       `}</style>
 
-      <nav className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-4 py-6 md:px-0">
-        <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-700 text-white shadow">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M4 12c5 0 4-8 10-8 0 3 6 3 6 8s-6 5-6 8c-6 0-5-8-10-8Z"
-                fill="currentColor"
-              />
-            </svg>
-          </div>
-          <span className="font-jakarta text-xl font-semibold tracking-tight text-slate-900">
-            tranche
-          </span>
-        </div>
-        <div className="hidden items-center gap-8 md:flex">
-          {["Sub Funds", "Net Worth", "Connectors", "Markets"].map((item) => (
-            <a
-              key={item}
-              href="#"
-              className="text-sm text-slate-600 hover:text-slate-900"
-            >
-              {item}
-            </a>
-          ))}
-        </div>
-        <div className="hidden gap-2 md:flex">
-          <button
-            onClick={handleSignIn}
-            className="rounded-full px-4 py-2 text-sm text-slate-700 hover:bg-white"
-          >
-            Login
-          </button>
-          <SoftButton onClick={handleSignIn}>Sign Up</SoftButton>
-        </div>
-      </nav>
+      <Nav variant="light" />
 
-      <div className="mx-auto grid w-full max-w-[1180px] grid-cols-1 gap-6 px-4 pb-14 md:grid-cols-2 md:px-0">
+      <div className="mx-auto grid w-full max-w-[1180px] flex-1 grid-cols-1 content-center gap-6 px-4 pb-14 md:grid-cols-2 md:px-0">
         <div className="flex flex-col justify-center space-y-8 pr-2">
           <div>
             <h1 className="text-5xl md:text-6xl font-semibold leading-[1.05] tracking-tight text-slate-900">
@@ -161,7 +122,7 @@ export default function LandingPage() {
             <p className="mt-4 max-w-md text-slate-600">
               Your personal{" "}
               <span className="font-medium text-slate-900">
-                net worth dashboard and sub-fund engine
+                net worth dashboard and tranche engine
               </span>{" "}
               — connectors for Chase, Schwab, Kalshi, and Polymarket land here
               once API keys are wired up.
@@ -262,7 +223,7 @@ export default function LandingPage() {
             transition={{ delay: 0.3 }}
             className="col-span-1 rounded-xl bg-white p-6 text-slate-800 shadow-lg ring-1 ring-slate-200"
           >
-            <div className="text-sm text-slate-500">Sub-Fund Progress</div>
+            <div className="text-sm text-slate-500">Tranche Progress</div>
             <div className="mt-2 text-3xl font-semibold tracking-tight">
               On Track{" "}
               <span className="text-sm font-medium text-slate-400 align-middle">

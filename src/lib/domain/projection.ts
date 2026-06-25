@@ -1,5 +1,5 @@
 // Pure "what-if" projection: given a monthly contribution and assumed annual
-// return, when does a fund reach its goal? Used by the what-if simulator.
+// return, when does a tranche reach its goal? Used by the what-if simulator.
 
 export interface ProjectionInput {
   currentValue: number;

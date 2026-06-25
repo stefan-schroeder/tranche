@@ -5,7 +5,7 @@ import LandingPage from "@/components/ui/fin-tech-landing-page";
 export default async function Home() {
   const session = await auth();
   if (session) {
-    redirect("/funds");
+    redirect("/tranches");
   }
 
   return <LandingPage />;

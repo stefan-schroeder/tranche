@@ -1,5 +1,5 @@
-// Pure fund math. No I/O, no clock — `now` is always passed in.
-import type { Fund, PayFrequency, TaggedPosition } from "./types";
+// Pure tranche math. No I/O, no clock — `now` is always passed in.
+import type { Tranche, PayFrequency, TaggedPosition } from "./types";
 
 const PAYCHECKS_PER_YEAR: Record<PayFrequency, number> = {
   weekly: 52,
@@ -10,35 +10,35 @@ const PAYCHECKS_PER_YEAR: Record<PayFrequency, number> = {
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-export type FundStatus = "complete" | "on_track" | "at_risk" | "behind" | "unreachable";
+export type TrancheStatus = "complete" | "on_track" | "at_risk" | "behind" | "unreachable";
 
 export interface ContributionResult {
   currentValue: number;
   amountNeeded: number;
   paychecksRemaining: number;
   requiredPerPaycheck: number;
-  percentOfPaycheck: number; // 0..1, share of one paycheck this fund demands
+  percentOfPaycheck: number; // 0..1, share of one paycheck this tranche demands
   progress: number; // 0..1, currentValue / goalAmount
-  status: FundStatus;
+  status: TrancheStatus;
 }
 
-/** Sum shares × current price for every position tagged to a fund. */
-export function fundCurrentValue(positions: TaggedPosition[]): number {
+/** Sum shares × current price for every position tagged to a tranche. */
+export function trancheCurrentValue(positions: TaggedPosition[]): number {
   return positions.reduce((sum, p) => sum + p.shares * p.currentPrice, 0);
 }
 
 /**
- * How much must go into this fund each paycheck to hit its goal by the target date.
+ * How much must go into this tranche each paycheck to hit its goal by the target date.
  * `now` is injected so this is deterministic and unit-testable.
  */
 export function calcContribution(
-  fund: Fund,
+  tranche: Tranche,
   currentValue: number,
   paycheckAmount: number,
   freq: PayFrequency,
   now: Date,
 ): ContributionResult {
-  const goal = fund.goalAmount;
+  const goal = tranche.goalAmount;
   const progress = goal > 0 ? clamp(currentValue / goal, 0, 1) : 1;
   const amountNeeded = goal - currentValue;
 
@@ -55,7 +55,7 @@ export function calcContribution(
     };
   }
 
-  const days = (new Date(fund.targetDate).getTime() - now.getTime()) / MS_PER_DAY;
+  const days = (new Date(tranche.targetDate).getTime() - now.getTime()) / MS_PER_DAY;
   const paychecksRemaining = Math.max(0, Math.floor((days / 365) * PAYCHECKS_PER_YEAR[freq]));
 
   // Deadline already passed (or too close to fit a single paycheck): goal can't be met on schedule.
@@ -85,8 +85,8 @@ export function calcContribution(
   };
 }
 
-// A fund is healthier the smaller a slice of each paycheck it needs.
-function statusFromShare(percentOfPaycheck: number): FundStatus {
+// A tranche is healthier the smaller a slice of each paycheck it needs.
+function statusFromShare(percentOfPaycheck: number): TrancheStatus {
   if (percentOfPaycheck <= 0.3) return "on_track";
   if (percentOfPaycheck <= 0.6) return "at_risk";
   return "behind";

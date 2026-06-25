@@ -7,7 +7,7 @@ export type Priority = "high" | "medium" | "low";
 
 export type PayFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly";
 
-export interface Fund {
+export interface Tranche {
   id: number;
   name: string;
   goalAmount: number;
@@ -16,7 +16,7 @@ export interface Fund {
   color: string;
 }
 
-// A holding tagged to a fund, joined with its current market price.
+// A holding tagged to a tranche, joined with its current market price.
 export interface TaggedPosition {
   ticker: string;
   shares: number;
