@@ -1,28 +1,36 @@
 import { createTranche, getTranchePositions, listTranches } from "@/lib/db";
 import { calcContribution, trancheCurrentValue } from "@/lib/domain/tranches";
 import type { Priority } from "@/lib/domain/types";
+import { getConnector } from "@/lib/connectors";
 import { requireSession } from "@/lib/api-auth";
-
-// TODO: replace with real Plaid paycheck detection + Schwab live prices.
-const PLACEHOLDER_PAYCHECK = 2000;
-const PLACEHOLDER_FREQ = "biweekly" as const;
-const PLACEHOLDER_PRICE = 100;
 
 export async function GET() {
   const unauthorized = await requireSession();
   if (unauthorized) return unauthorized;
 
+  const connector = getConnector();
   const tranches = listTranches();
   const now = new Date();
 
-  const result = tranches.map((tranche) => {
-    const positions = getTranchePositions(tranche.id).map((p) => ({
+  // Read each tranche's positions once, then fetch all needed quotes in a single call.
+  const trancheData = tranches.map((tranche) => ({
+    tranche,
+    rows: getTranchePositions(tranche.id),
+  }));
+  const tickers = [...new Set(trancheData.flatMap((d) => d.rows.map((r) => r.ticker)))];
+  const [paycheck, quotes] = await Promise.all([
+    connector.getPaycheck(),
+    connector.getQuotes(tickers),
+  ]);
+
+  const result = trancheData.map(({ tranche, rows }) => {
+    const positions = rows.map((p) => ({
       ticker: p.ticker,
       shares: p.shares,
-      currentPrice: PLACEHOLDER_PRICE,
+      currentPrice: quotes[p.ticker] ?? 0,
     }));
     const currentValue = trancheCurrentValue(positions);
-    const contribution = calcContribution(tranche, currentValue, PLACEHOLDER_PAYCHECK, PLACEHOLDER_FREQ, now);
+    const contribution = calcContribution(tranche, currentValue, paycheck.amount, paycheck.frequency, now);
     return { ...tranche, ...contribution, positions };
   });
 
