@@ -6,7 +6,7 @@ import UserMenu from "./user-menu";
 
 const NAV_LINKS: { label: string; href: string }[] = [
   { label: "Tranches", href: "/tranches" },
-  { label: "Net Worth", href: "/net-worth" },
+  { label: "Net Worth", href: "/" },
   { label: "Connectors", href: "#" },
   { label: "Markets", href: "#" },
 ];
