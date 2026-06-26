@@ -2,15 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { CircleUserRound, LogOut, Settings } from "lucide-react";
 
-type UserMenuProps = {
-  user: { name?: string | null; email?: string | null; image?: string | null };
-  isDark?: boolean;
-};
+export default function UserMenu({ isDark = false }: { isDark?: boolean }) {
+  const { data: session } = useSession();
+  const user = session?.user;
 
-export default function UserMenu({ user, isDark = false }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -31,7 +29,7 @@ export default function UserMenu({ user, isDark = false }: UserMenuProps) {
     };
   }, [open]);
 
-  const showImage = Boolean(user.image) && !imgError;
+  const showImage = Boolean(user?.image) && !imgError;
 
   return (
     <div ref={ref} className="relative">
@@ -49,8 +47,8 @@ export default function UserMenu({ user, isDark = false }: UserMenuProps) {
         {showImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={user.image as string}
-            alt={user.name ?? "Account"}
+            src={user!.image as string}
+            alt={user?.name ?? "Account"}
             referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
             className="h-full w-full object-cover"
@@ -70,24 +68,28 @@ export default function UserMenu({ user, isDark = false }: UserMenuProps) {
             (isDark ? "bg-gray-900 ring-gray-700" : "bg-white ring-slate-200")
           }
         >
-          <div className="px-4 py-3">
-            {user.name && (
-              <p
-                className={
-                  "truncate text-sm font-medium " + (isDark ? "text-gray-50" : "text-slate-900")
-                }
-              >
-                {user.name}
-              </p>
-            )}
-            {user.email && (
-              <p className={"truncate text-xs " + (isDark ? "text-gray-400" : "text-slate-500")}>
-                {user.email}
-              </p>
-            )}
-          </div>
-
-          <div className={isDark ? "border-t border-gray-800" : "border-t border-slate-100"} />
+          {(user?.name || user?.email) && (
+            <>
+              <div className="px-4 py-3">
+                {user?.name && (
+                  <p
+                    className={
+                      "truncate text-sm font-medium " +
+                      (isDark ? "text-gray-50" : "text-slate-900")
+                    }
+                  >
+                    {user.name}
+                  </p>
+                )}
+                {user?.email && (
+                  <p className={"truncate text-xs " + (isDark ? "text-gray-400" : "text-slate-500")}>
+                    {user.email}
+                  </p>
+                )}
+              </div>
+              <div className={isDark ? "border-t border-gray-800" : "border-t border-slate-100"} />
+            </>
+          )}
 
           <Link
             href="/settings"

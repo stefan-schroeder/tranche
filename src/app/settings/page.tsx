@@ -12,7 +12,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex min-h-screen flex-1 flex-col bg-[#F3F5F7]">
-      <Nav variant="light" />
+      <Nav variant="light" authed />
 
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 md:px-0">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>

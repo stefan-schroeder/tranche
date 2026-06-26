@@ -1,6 +1,7 @@
 import { createTranche, getTranchePositions, listTranches } from "@/lib/db";
 import { calcContribution, trancheCurrentValue } from "@/lib/domain/tranches";
 import type { Priority } from "@/lib/domain/types";
+import { requireSession } from "@/lib/api-auth";
 
 // TODO: replace with real Plaid paycheck detection + Schwab live prices.
 const PLACEHOLDER_PAYCHECK = 2000;
@@ -8,6 +9,9 @@ const PLACEHOLDER_FREQ = "biweekly" as const;
 const PLACEHOLDER_PRICE = 100;
 
 export async function GET() {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
+
   const tranches = listTranches();
   const now = new Date();
 
@@ -34,6 +38,9 @@ interface CreateTrancheBody {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
+
   const body = (await request.json()) as Partial<CreateTrancheBody>;
 
   if (!body.name || typeof body.goalAmount !== "number" || !body.targetDate) {

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { deleteTranche, updateTranche } from "@/lib/db";
 import type { Priority } from "@/lib/domain/types";
+import { requireSession } from "@/lib/api-auth";
 
 interface UpdateTrancheBody {
   name?: string;
@@ -11,6 +12,9 @@ interface UpdateTrancheBody {
 }
 
 export async function PUT(request: NextRequest, ctx: RouteContext<"/api/tranches/[id]">) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
+
   const { id } = await ctx.params;
   const trancheId = Number(id);
   if (!Number.isInteger(trancheId)) {
@@ -26,6 +30,9 @@ export async function PUT(request: NextRequest, ctx: RouteContext<"/api/tranches
 }
 
 export async function DELETE(_request: NextRequest, ctx: RouteContext<"/api/tranches/[id]">) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
+
   const { id } = await ctx.params;
   const trancheId = Number(id);
   if (!Number.isInteger(trancheId)) {

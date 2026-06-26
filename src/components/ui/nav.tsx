@@ -1,21 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { signIn, signOut } from "next-auth/react";
+import { signIn } from "next-auth/react";
+import UserMenu from "./user-menu";
 
 const NAV_LINKS: { label: string; href: string }[] = [
   { label: "Tranches", href: "/tranches" },
-  { label: "Net Worth", href: "#" },
+  { label: "Net Worth", href: "/net-worth" },
   { label: "Connectors", href: "#" },
   { label: "Markets", href: "#" },
 ];
 
 function handleSignIn() {
   signIn("google", { callbackUrl: "/tranches" });
-}
-
-function handleSignOut() {
-  signOut({ callbackUrl: "/" });
 }
 
 export default function Nav({
@@ -73,19 +70,9 @@ export default function Nav({
           </Link>
         ))}
       </div>
-      <div className="hidden gap-2 md:flex">
+      <div className="hidden items-center gap-2 md:flex">
         {authed ? (
-          <button
-            onClick={handleSignOut}
-            className={
-              "cursor-pointer rounded-full px-4 py-2 text-sm transition " +
-              (isDark
-                ? "text-gray-300 hover:bg-gray-800"
-                : "text-slate-700 hover:bg-white")
-            }
-          >
-            Sign out
-          </button>
+          <UserMenu isDark={isDark} />
         ) : (
           <>
             <button

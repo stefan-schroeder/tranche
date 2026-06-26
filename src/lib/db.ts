@@ -159,3 +159,106 @@ export function tagPosition(trancheId: number, ticker: string, shares: number): 
 export function untagPosition(trancheId: number, ticker: string): void {
   getDb().prepare("DELETE FROM tranche_positions WHERE tranche_id = ? AND ticker = ?").run(trancheId, ticker);
 }
+
+interface SnapshotRow {
+  id: number;
+  total: number;
+  cash: number;
+  investments: number;
+  prediction_markets: number;
+  snapshot_date: string;
+}
+
+export interface NetWorthSnapshot {
+  date: string; // ISO date "YYYY-MM-DD"
+  total: number;
+  cash: number;
+  investments: number;
+  predictionMarkets: number;
+}
+
+function rowToSnapshot(row: SnapshotRow): NetWorthSnapshot {
+  return {
+    date: row.snapshot_date,
+    total: row.total,
+    cash: row.cash,
+    investments: row.investments,
+    predictionMarkets: row.prediction_markets,
+  };
+}
+
+export interface NewSnapshot {
+  date: string;
+  cash: number;
+  investments: number;
+  predictionMarkets: number;
+}
+
+export function upsertSnapshot(s: NewSnapshot): void {
+  const total = s.cash + s.investments + s.predictionMarkets;
+  getDb()
+    .prepare(
+      `INSERT INTO networth_snapshots (snapshot_date, total, cash, investments, prediction_markets)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(snapshot_date) DO UPDATE SET
+         total = excluded.total,
+         cash = excluded.cash,
+         investments = excluded.investments,
+         prediction_markets = excluded.prediction_markets`,
+    )
+    .run(s.date, total, s.cash, s.investments, s.predictionMarkets);
+}
+
+export function listSnapshots(sinceDays?: number): NetWorthSnapshot[] {
+  const db = getDb();
+  const rows =
+    sinceDays === undefined
+      ? (db
+          .prepare("SELECT * FROM networth_snapshots ORDER BY snapshot_date ASC")
+          .all() as unknown as SnapshotRow[])
+      : (db
+          .prepare(
+            "SELECT * FROM networth_snapshots WHERE snapshot_date >= date('now', ?) ORDER BY snapshot_date ASC",
+          )
+          .all(`-${sinceDays} days`) as unknown as SnapshotRow[]);
+  return rows.map(rowToSnapshot);
+}
+
+/**
+ * Dev convenience: when the snapshots table is empty, fabricate ~90 days of daily
+ * history ending today at the given breakdown, trending gently upward. Idempotent —
+ * once any snapshot exists this is a no-op. Replace with real connector ingestion.
+ */
+export function seedSnapshotsIfEmpty(end: {
+  cash: number;
+  investments: number;
+  predictionMarkets: number;
+}): void {
+  const db = getDb();
+  const count = db.prepare("SELECT COUNT(*) AS n FROM networth_snapshots").get() as unknown as {
+    n: number;
+  };
+  if (count.n > 0) return;
+
+  const DAYS = 90;
+  const today = new Date();
+  for (let i = DAYS; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const date = d.toISOString().slice(0, 10);
+
+    // Walk backward from today's value: older days are scaled down (gentle uptrend)
+    // plus small deterministic wobble so the line isn't perfectly smooth.
+    const progress = (DAYS - i) / DAYS; // 0 (oldest) .. 1 (today)
+    const drift = 0.78 + 0.22 * progress; // 78% -> 100% of current
+    const wobble = 1 + 0.015 * Math.sin(i * 1.7);
+    const factor = drift * wobble;
+
+    upsertSnapshot({
+      date,
+      cash: Math.round(end.cash * factor),
+      investments: Math.round(end.investments * factor),
+      predictionMarkets: Math.round(end.predictionMarkets * factor),
+    });
+  }
+}
