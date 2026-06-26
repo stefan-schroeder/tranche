@@ -6,7 +6,9 @@
     "dev": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./test/register.mjs --test \"src/**/*.test.ts\"",
+    "test:coverage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./test/register.mjs --test --experimental-test-coverage \"src/**/*.test.ts\""
   },
   "dependencies": {
     "framer-motion": "^12.41.0",
